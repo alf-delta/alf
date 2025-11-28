@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PCI Strategy Calculator · CapEx/OpEx Simulation</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+  <!-- 1. FAVICON (ME) -->
+
+
+  <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%231e1b4b'/%3E%3Ctext x='50' y='60' font-size='45' text-anchor='middle' fill='%23a855f7' font-weight='bold' font-family='Segoe UI, sans-serif'%3EPG%3C/text%3E%3C/svg%3E" />
+
+
+  <!-- 2. CHART.JS LIBRARY -->
+
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
+  <style>
+    /* --- CORE THEME --- */
+    :root {
+      --bg: #0b0d14;
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+      --text-dim: #64748b;
+      --accent-purple: #a855f7;
+      --accent-green: #34d399;
+      --panel-bg: rgba(15, 23, 42, 0.6);
+      --border-color: rgba(148, 163, 184, 0.2);
+      --transition: 0.2s ease;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0; padding: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text-main);
+      background: radial-gradient(circle at top, #111827 0, #020617 45%, #000000 100%);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      display: flex; flex-direction: column; align-items: center; padding: 20px 2%;
+      min-height: 100vh;
+    }
+
+    /* --- APP SHELL --- */
+    .app-shell {
+      width: 100%;
+      max-width: 1800px;
+      background: linear-gradient(135deg, rgba(15,23,42,0.95), rgba(3,7,18,0.98));
+      border-radius: 24px; border: 1px solid rgba(148,163,184,0.3);
+      box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+      display: flex; flex-direction: column; position: relative; overflow: hidden;
+      margin-bottom: 40px;
+    }
+
+    .app-shell::before {
+      content: ""; position: absolute; pointer-events: none; mix-blend-mode: screen; opacity: 0.6;
+      width: 400px; height: 400px; border-radius: 999px;
+      background: radial-gradient(circle, rgba(168,85,247,0.2), transparent 70%);
+      top: -150px; right: -100px;
+    }
+
+    /* HEADER */
+    header {
+      padding: 25px 30px;
+      display: flex; align-items: center; justify-content: space-between;
+      z-index: 2; border-bottom: 1px solid var(--border-color);
+    }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand-mark {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: radial-gradient(circle at 20% 0%, #4f46e5 0, #a855f7 35%, #10b981 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 14px; color: #020617; box-shadow: 0 0 20px rgba(168, 85, 247, 0.8);
+    }
+    .brand-text-main { font-size: 20px; font-weight: 600; letter-spacing: 0.02em; }
+    .brand-sub { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; }
+    .meta-badge {
+      padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border-color);
+      font-size: 12px; color: var(--text-muted); display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(15,23,42,0.8);
+    }
+    .meta-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+
+    /* LAYOUT GRID */
+    main {
+      position: relative; z-index: 1; padding: 24px;
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 24px;
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      background: rgba(15,23,42,0.4); border-radius: 18px; border: 1px solid var(--border-color); padding: 20px;
+      display: flex; flex-direction: column; gap: 18px; height: fit-content;
+    }
+    .sidebar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+    .sidebar-title { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #e2e8f0; }
+
+    .budget-totals { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .pill-card {
+      background: rgba(30, 41, 59, 0.5); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .pill-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
+    .pill-value { font-size: 18px; font-weight: 700; color: #fff; }
+
+    .badge-capex { color: #d8b4fe; font-size: 10px; background: rgba(168,85,247,0.15); padding: 2px 6px; border-radius: 4px; width: fit-content; }
+    .badge-opex { color: #86efac; font-size: 10px; background: rgba(52,211,153,0.15); padding: 2px 6px; border-radius: 4px; width: fit-content; }
+
+    .budget-section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted); margin-top: 10px; padding-bottom: 5px; border-bottom: 1px dashed var(--border-color); }
+    .budget-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .budget-table td { padding: 8px 0; vertical-align: middle; }
+    .budget-amount { text-align: right; color: #f1f5f9; font-family: 'Segoe UI', monospace; font-weight: 600; }
+    .budget-label-sub { font-size: 11px; color: var(--text-dim); display: block; margin-top: 2px; }
+
+    /* CONTROLS & CONTENT */
+    .main-column { display: flex; flex-direction: column; gap: 20px; }
+
+    .controls-card {
+      background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 18px; padding: 20px;
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+    }
+    .control-label { font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 0.05em;}
+
+    .btn-group { display: flex; gap: 8px; }
+    .checkbox-row { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+
+    .toggle-pill, .checkbox-pill {
+      flex: 1; background: rgba(30, 41, 59, 0.6); border: 1px solid var(--border-color); border-radius: 10px;
+      padding: 12px; cursor: pointer; transition: var(--transition); color: var(--text-muted); font-size: 13px;
+      display: flex; flex-direction: column; position: relative;
+    }
+    .toggle-pill:hover, .checkbox-pill:hover { background: rgba(255,255,255,0.05); color: #fff; }
+
+    .toggle-pill.active { border-color: var(--accent-purple); background: rgba(168,85,247,0.15); color: #fff; box-shadow: 0 0 15px rgba(168,85,247,0.15); }
+
+    .checkbox-pill { flex-direction: row; align-items: center; gap: 12px; width: 100%; }
+    .fake-check { width: 16px; height: 16px; border-radius: 50%; background: #475569; transition: var(--transition); flex-shrink: 0; }
+
+    .checkbox-pill.active { border-color: var(--accent-green); background: rgba(52,211,153,0.15); color: #fff; box-shadow: 0 0 15px rgba(52,211,153,0.15); }
+    .checkbox-pill.active .fake-check { background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
+
+    .checkbox-content { display: flex; flex-direction: column; gap: 2px; line-height: 1.2; }
+    .toggle-pill small, .checkbox-pill small {
+        font-size: 10px; color: var(--text-dim); text-transform: uppercase; font-weight: 600; margin-top: 2px; display: block;
+    }
+
+    /* GANTT CHART */
+    .gantt-card { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 18px; padding: 20px; }
+    .gantt-header { display: flex; justify-content: space-between; margin-bottom: 15px; }
+    .gantt-title { font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em; color: #fff; }
+
+    .timeline-months { display: grid; grid-template-columns: repeat(12, 1fr); font-size: 10px; color: var(--text-muted); text-align: center; margin-bottom: 8px; }
+    .timeline-track { position: relative; padding-top: 10px; }
+    /* GO-LIVE LINE (aligned exactly to boundary between M4 and M5) */
+.launch-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(100% * 5 / 12);   /* ← идеально ставит после M4 */
+  width: 1px;
+  border-left: 1px dashed #f87171;
+  z-index: 5;
+}
+
+.launch-label {
+  position: absolute;
+  top: -18px;
+  left: calc(100% * 5 / 12 + 0.8%);  /* небольшой отступ, чтобы текст не прилипал */
+  font-size: 10px;
+  color: #f87171;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+    .gantt-row { display: flex; align-items: center; margin-bottom: 12px; height: 20px; position: relative; }
+    .gantt-row-label { width: 140px; font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+    .gantt-bar-track { flex: 1; position: relative; height: 100%; }
+
+    .gantt-bar { height: 10px; border-radius: 5px; position: absolute; top: 5px; transition: width 0.3s; z-index: 2; }
+    .bar-capex { background: linear-gradient(90deg, #6366f1, #a855f7); }
+    .bar-opex { background: linear-gradient(90deg, #059669, #34d399); }
+    .bar-mixed {
+        background: linear-gradient(90deg, #34d399 0%, #059669 100%);
+        border-top-left-radius: 0; border-bottom-left-radius: 0;
+        z-index: 1;
+    }
+
+    .gantt-bubble {
+      position: absolute; right: -8px; top: -20px; transform: translateX(50%);
+      font-size: 9px; background: #1e293b; padding: 2px 6px; border-radius: 4px; border: 1px solid #475569;
+      opacity: 0; transition: opacity 0.2s; white-space: nowrap; pointer-events: none;
+    }
+    .gantt-bar:hover .gantt-bubble { opacity: 1; z-index: 10; }
+
+    /* TOOLTIPS */
+    .info-icon {
+      width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(148,163,184,0.5);
+      color: var(--text-muted); font-size: 9px; font-weight: bold; font-family: serif;
+      display: inline-flex; justify-content: center; align-items: center; cursor: help; position: relative;
+    }
+    .info-icon:hover { border-color: var(--accent-purple); color: #fff; background: rgba(168,85,247,0.2); }
+    .info-icon::after {
+        content: attr(data-tooltip);
+        visibility: hidden; opacity: 0; position: absolute;
+        bottom: 140%; left: 50%; transform: translateX(-50%);
+        width: 240px; background: #0f172a; border: 1px solid #334155; padding: 12px;
+        border-radius: 8px; font-size: 11px; color: #e2e8f0; line-height: 1.4;
+        text-transform: none; text-align: left; z-index: 50; transition: 0.2s; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        font-family: sans-serif; font-weight: normal; white-space: pre-wrap;
+    }
+    .info-icon:hover::after { visibility: visible; opacity: 1; }
+
+    /* PROJECTIONS & KPI */
+    .projections-row { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+    .chart-card { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 18px; padding: 20px; }
+
+    .kpi-panel {
+      display: flex; flex-direction: column; gap: 12px;
+      background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 18px; padding: 20px;
+    }
+    .kpi-card {
+      background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(148,163,184,0.2); border-radius: 12px; padding: 15px;
+      display: flex; flex-direction: column; flex: 1; justify-content: center;
+    }
+    .kpi-label { font-size: 10px; text-transform: uppercase; color: var(--text-muted); display: flex; justify-content: space-between; }
+    .kpi-value { font-size: 24px; font-weight: 700; color: #fff; margin-top: 5px; }
+    .kpi-unit { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+    /* CJM MAP CARD */
+    .cjm-card {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
+      padding: 20px;
+    }
+    .cjm-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .cjm-title {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #e5e7eb;
+    }
+    .cjm-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      max-width: 420px;
+      line-height: 1.5;
+      text-align: right;
+    }
+    .cjm-stages {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .cjm-stage {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 3fr);
+      gap: 18px;
+      align-items: flex-start;
+      position: relative;
+      padding-bottom: 6px;
+    }
+    .cjm-stage::before {
+      content: "";
+      position: absolute;
+      left: 10px;
+      top: 0;
+      bottom: -6px;
+      border-left: 1px dashed rgba(148,163,184,0.25);
+    }
+    .cjm-stage:first-child::before {
+      top: 20px;
+    }
+    .cjm-stage-bar {
+      position: relative;
+      padding-left: 12px;
+      padding-top: 6px;
+    }
+    .cjm-beam {
+      height: 12px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #22c55e 0%, #34d399 40%, #a855f7 100%);
+      box-shadow: 0 0 16px rgba(34,197,94,0.3);
+    }
+    .cjm-beam-100 { width: 100%; }
+    .cjm-beam-60  { width: 60%; }
+    .cjm-beam-35  { width: 35%; }
+    .cjm-beam-12  { width: 12%; }
+    .cjm-beam-5   { width: 5%; }
+
+    .cjm-stage-num {
+      position: absolute;
+      top: -4px;
+      right: 0;
+      font-size: 12px;
+      font-weight: 600;
+      color: #e5e7eb;
+    }
+    .cjm-stage-body { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+    .cjm-stage-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #e5e7eb;
+      margin-bottom: 2px;
+    }
+    .cjm-stage-drop {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #f97373;
+      margin-bottom: 4px;
+    }
+    .cjm-stage-note { margin-bottom: 4px; }
+    .cjm-stage-levers {
+      font-size: 11px;
+      color: #a5b4fc;
+    }
+    .cjm-stage-levers span {
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      margin-right: 4px;
+      color: #93c5fd;
+    }
+
+    /* FOOTER */
+    footer {
+      padding: 30px 40px;
+      border-top: 1px solid var(--border-color);
+      display: flex; justify-content: space-between; align-items: flex-start;
+    }
+    .disclaimer { font-size: 14px; color: #64748b; line-height: 1.6; max-width: 900px; font-weight: 400; }
+    .version { font-size: 11px; color: #334155; }
+
+    /* METHODOLOGY SECTION */
+    .methodology-container {
+        width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px;
+        margin-top: 20px; padding-bottom: 40px;
+    }
+    .meth-block { color: #94a3b8; border: 1px solid rgba(255,255,255,0.05); padding: 20px; border-radius: 16px; background: rgba(15,23,42,0.3); }
+    .meth-title {
+      font-size: 14px; font-weight: 700; color: #e2e8f0; margin-bottom: 12px;
+      text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding-bottom: 8px; display: flex; align-items: center; gap: 8px;
+    }
+    .meth-text { font-size: 12px; line-height: 1.6; }
+    .source-tag { display: inline-block; font-size: 10px; color: var(--accent-purple); margin-top: 6px; font-family: monospace; opacity: 0.8; }
+
+    /* OLDSCHOOL BUTTON */
+    .oldschool-container {
+        width: 100%; max-width: 600px; margin: 0 auto 30px auto; text-align: center;
+        padding: 20px; background: rgba(16, 185, 129, 0.03); border: 1px dashed rgba(52, 211, 153, 0.3); border-radius: 16px;
+    }
+    .os-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 4px; }
+    .os-sublabel { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 15px; }
+    .btn-oldschool {
+        display: inline-flex; align-items: center; gap: 10px; background: transparent;
+        border: 1px solid var(--accent-green); color: var(--accent-green); padding: 10px 24px;
+        border-radius: 999px; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+        text-decoration: none; transition: 0.2s ease;
+    }
+    .btn-oldschool svg { width: 18px; height: 18px; }
+    .btn-oldschool:hover { background: rgba(52, 211, 153, 0.15); box-shadow: 0 0 20px rgba(52, 211, 153, 0.4); transform: translateY(-2px); color: #fff; border-color: #fff; }
+
+    /* MOBILE MEDIA QUERY */
+    @media (max-width: 1024px) {
+        main { grid-template-columns: 1fr; display: flex; flex-direction: column; gap: 20px; padding: 15px; }
+        .app-shell { border-radius: 0; box-shadow: none; width: 100%; max-width: 100%; }
+        body { padding: 0; background: #0b0d14; }
+
+        /* Layout Order: Controls -> Charts -> Budget -> Gantt */
+        .sidebar { order: 2; margin-top: 20px; width: 100%; }
+        .main-column { order: 1; }
+
+        .controls-card { grid-template-columns: 1fr; gap: 25px; }
+        .btn-group { flex-wrap: wrap; }
+        .projections-row { grid-template-columns: 1fr; gap: 20px; }
+        .chart-card { min-height: 250px; }
+
+        .gantt-card { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-right: 20px; }
+        .gantt-header, .timeline-months, .timeline-track { min-width: 700px; }
+        .gantt-card::after {
+          content: '← Swipe to view timeline →';
+          display: block; text-align: center; font-size: 9px; color: rgba(255,255,255,0.3);
+          margin-top: 15px; text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        .methodology-container { grid-template-columns: 1fr; padding: 20px; }
+        header { flex-direction: column; align-items: flex-start; gap: 15px; }
+        .budget-totals { gap: 10px; }
+        footer { flex-direction: column; gap: 10px; }
+
+        .cjm-card { padding: 16px; }
+        .cjm-header { flex-direction: column; align-items: flex-start; }
+        .cjm-sub { text-align: left; }
+        .cjm-stage { grid-template-columns: 1fr; }
+    }
+  </style>
+
+
+</head>
+
+
+<body>
+
+
+<div class="app-shell">
+  <header>
+    <div class="brand">
+      <div class="brand-mark">PG</div>
+      <div>
+        <div class="brand-text-main">PCI GTM Strategy</div>
+        <div class="brand-sub">EU Market Penetration Model (<span style="color: #f75555;">prepared by Pavel Guliaev</span>)</div>
+      </div>
+    </div>
+    <div class="meta-badge">
+      <span class="meta-dot"></span>
+      <span>Live Simulation · EUR (€)</span>
+    </div>
+  </header>
+
+
+  <main>
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar">
+      <div style="width:100%">
+          <div class="sidebar-header">
+            <div class="sidebar-title">Budget Allocation</div>
+          </div>
+
+
+      <div class="budget-totals">
+        <div class="pill-card">
+          <div class="pill-label">Total Launch (CapEx)</div>
+          <div class="pill-value number-animated" id="launchCost">€ 0</div>
+          <span class="badge-capex">Pre-Revenue Setup</span>
+        </div>
+        <div class="pill-card">
+          <div class="pill-label">Monthly Burn (OpEx)</div>
+          <div class="pill-value number-animated" id="monthlyBurn">€ 0</div>
+          <span class="badge-opex">Active Months 5-12</span>
+        </div>
+      </div>
+  </div>
+
+  <div style="width:100%">
+      <div class="budget-section-title">CapEx (Setup Phase)</div>
+      <table class="budget-table">
+        <tr><td>Brand & Identity<span class="budget-label-sub">Visuals, Assets</span></td><td class="budget-amount" id="capexBranding">€ 0</td></tr>
+        <tr><td>Web & Localisation<span class="budget-label-sub">5 Markets + GDPR</span></td><td class="budget-amount" id="capexWeb">€ 0</td></tr>
+        <tr><td>Strategy & Ops<span class="budget-label-sub">Planning, Analytics</span></td><td class="budget-amount" id="capexStrategy">€ 0</td></tr>
+      </table>
+
+      <div class="budget-section-title">OpEx (Active Phase)</div>
+      <table class="budget-table">
+        <tr><td>PR & Reputation<span class="budget-label-sub">Media relations</span></td><td class="budget-amount" id="opexPR">€ 0</td></tr>
+        <tr><td>Social / LinkedIn<span class="budget-label-sub">Content & Mgmt</span></td><td class="budget-amount" id="opexSMM">€ 0</td></tr>
+        <tr><td>Paid Media (Ads)<span class="budget-label-sub">Search & Display</span></td><td class="budget-amount" id="opexAds">€ 0</td></tr>
+      </table>
+  </div>
+</aside>
+
+<!-- RIGHT CONTENT -->
+<section class="main-column">
+
+  <!-- CONTROLS -->
+  <section class="controls-card">
+    <!-- 1. Intensity -->
+    <div>
+        <div class="control-label">1. Budget Intensity</div>
+        <div class="btn-group" id="strategyGroup">
+          <div class="toggle-pill" data-key="mvp" data-coeff="0.6">MVP<small>Test Mode</small></div>
+          <div class="toggle-pill active" data-key="optimal" data-coeff="1.0">Optimal<small>Standard Growth</small></div>
+          <div class="toggle-pill" data-key="dominate" data-coeff="1.6">Dominate<small>High Aggr.</small></div>
+        </div>
+    </div>
+
+    <!-- 2. Geo (Vertical Stack Fixed) -->
+    <div>
+        <div class="control-label">2. Markets (Geo)</div>
+        <div class="checkbox-row">
+            <!-- Core 5 -->
+            <div class="toggle-pill active" style="cursor:default; opacity:0.8; display:flex; flex-direction:column; gap:2px;">
+                <span>Core 5</span>
+                <small>UK, DE, FR, IT, ES</small>
+            </div>
+
+            <!-- South -->
+            <div class="checkbox-pill" id="marketSouth">
+                <div class="fake-check"></div>
+                <div class="checkbox-content">
+                    <span>+ South</span>
+                    <small>PT, GR</small>
+                </div>
+            </div>
+
+            <!-- Nordics -->
+            <div class="checkbox-pill" id="marketNordics">
+                <div class="fake-check"></div>
+                <div class="checkbox-content">
+                    <span>+ Nordics</span>
+                    <small>FI, SE, NO (High Cost)</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Audience -->
+    <div>
+        <div class="control-label">3. Audience Target</div>
+        <div class="btn-group" id="audienceGroup">
+          <div class="toggle-pill active" data-key="startups">Startups<small>Vol: Low | Conv: High</small></div>
+          <div class="toggle-pill" data-key="enterprise">+ Enterprise<small>Vol: High | Conv: Low</small></div>
+        </div>
+    </div>
+  </section>
+
+  <!-- GANTT -->
+  <section class="gantt-card">
+    <div class="gantt-header">
+      <div class="gantt-title">Execution Roadmap (Year 1)</div>
+      <div style="font-size:10px; color:#9ca3af; text-transform:uppercase;">Purple: Build/Soft · Green: Scale/Maintenance</div>
+    </div>
+    <div class="timeline-months">
+      <span>M1</span><span>M2</span><span>M3</span><span>M4</span>
+      <span style="color:#f87171; font-weight:bold;">M5</span><span>M6</span><span>M7</span><span>M8</span>
+      <span>M9</span><span>M10</span><span>M11</span><span>M12</span>
+    </div>
+    <div class="timeline-track">
+        <!-- Go-Live Line -->
+        <div class="launch-line"><div class="launch-label">Go-Live</div></div>
+
+        <!-- Setup: Brand -->
+        <div class="gantt-row">
+            <div class="gantt-row-label">Setup: Brand
+                <div class="info-icon" data-tooltip="• Logo & Identity (M1-M2)&#10;• Brandbook Finalized (M3)&#10;• Sales Assets">i</div>
+            </div>
+            <div class="gantt-bar-track"><div class="gantt-bar bar-capex" style="left:0; width:25%;"> <div class="gantt-bubble">Done</div> </div></div>
+        </div>
+
+        <!-- Setup: Web (Parallel) -->
+        <div class="gantt-row">
+            <div class="gantt-row-label">Setup: Web
+                <div class="info-icon" data-tooltip="• M1-M2: UX/Prototyping (Parallel)&#10;• M3-M4: UI & Dev (Soft Launch)&#10;• M5-M12: Maintenance & CRO (Active)">i</div>
+            </div>
+            <div class="gantt-bar-track">
+                <!-- Segment 1: Dev & Soft Launch (M1-M4) -->
+                <div class="gantt-bar bar-capex" style="left:0; width:33.3%; border-top-right-radius: 0; border-bottom-right-radius: 0;">
+                    <div class="gantt-bubble" style="right: 50%;">Soft Launch</div>
+                </div>
+                <!-- Segment 2: Maintenance (M5-M12) -->
+                <div class="gantt-bar bar-mixed" style="left:33.3%; width:66.6%;"></div>
+            </div>
+        </div>
+
+        <!-- Setup: Strat -->
+        <div class="gantt-row">
+            <div class="gantt-row-label">Setup: Strat
+                <div class="info-icon" data-tooltip="• Competitor Analysis&#10;• ICP Definition&#10;• Analytics Setup">i</div>
+            </div>
+            <div class="gantt-bar-track"><div class="gantt-bar bar-capex" style="left:0; width:16%;"></div></div>
+        </div>
+
+        <div class="gantt-row">
+            <div class="gantt-row-label" style="color:#e2e8f0">Run: PR
+                <div class="info-icon" data-tooltip="• Pitching & Publications&#10;• Expert Articles&#10;• Ongoing Reputation Mgmt">i</div>
+            </div>
+            <div class="gantt-bar-track"><div class="gantt-bar bar-opex" style="left:33.5%; width:66%;"></div></div>
+        </div>
+
+        <div class="gantt-row">
+            <div class="gantt-row-label" style="color:#e2e8f0">Run: Growth
+                <div class="info-icon" data-tooltip="• Paid Ads (Search/Social)&#10;• Lead Generation&#10;• Performance Optimization">i</div>
+            </div>
+            <div class="gantt-bar-track"><div class="gantt-bar bar-opex" style="left:33.5%; width:66%;"> <div class="gantt-bubble">Active Scale</div> </div></div>
+        </div>
+    </div>
+  </section>
+
+  <!-- PROJECTIONS -->
+  <section class="projections-row">
+    <div class="chart-card">
+      <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+        <div class="gantt-title" style="font-size:12px;">Growth Trajectory</div>
+        <div style="font-size:10px; color:#9ca3af;">Grey: Build · Green: Reach · Line: Leads</div>
+      </div>
+      <div style="height:220px; width:100%;"><canvas id="mainChart"></canvas></div>
+    </div>
+
+    <aside class="kpi-panel">
+        <div class="kpi-card">
+            <div class="kpi-label">Awareness<div class="info-icon" data-tooltip="Cumulative Impressions across LinkedIn, Search, and Media Partners.">i</div></div>
+            <div class="kpi-value number-animated" id="valAwareness">0</div>
+            <div class="kpi-unit">Est. Impressions (Year 1)</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Est. MQLs / Opps <div class="info-icon" data-tooltip="Qualified Leads (Marketing Qualified). Vetted companies requesting audit/consultation.">i</div></div>
+            <div class="kpi-value number-animated" id="valLeads" style="color:#34d399">0</div>
+            <div class="kpi-unit">Pipeline Opportunities</div>
+        </div>
+        <div class="kpi-card" style="border-color: rgba(168,85,247,0.4); background: rgba(88,28,135,0.2);">
+            <div class="kpi-label">Pipeline Value <div class="info-icon" data-tooltip="Total Gross Potential (Leads x Avg Deal). A leading indicator of future revenue.">i</div></div>
+            <div class="kpi-value number-animated" id="valPipeline" style="color:#d8b4fe">€ 0</div>
+            <div class="kpi-unit" id="dealMeta">Avg Deal €12k</div>
+        </div>
+    </aside>
+  </section>
+
+  <!-- CJM MAP UNDER GROWTH CHART -->
+  <section class="cjm-card">
+    <div class="cjm-header">
+      <div class="cjm-title">CJM · PCI Buying Journey (Signal Decay)</div>
+      <div class="cjm-sub" id="cjmMetaHeadline">
+        Beam starts at potential PCI-relevant accounts touched by our media mix. Only a fraction becomes in-year PCI projects.
+      </div>
+    </div>
+
+    <div class="cjm-stages">
+      <!-- STAGE 1 -->
+      <div class="cjm-stage">
+        <div class="cjm-stage-bar">
+          <div class="cjm-beam cjm-beam-100"></div>
+          <div class="cjm-stage-num" id="cjmStage1Num">0</div>
+        </div>
+        <div class="cjm-stage-body">
+          <div class="cjm-stage-title">Total reachable PCI-relevant accounts</div>
+          <div class="cjm-stage-drop">Drop-off: 0% · Starting beam</div>
+          <div class="cjm-stage-note">
+            Companies in Core 5 (+ optional South / Nordics) that fall into our ICP and are exposed to our brand, content, and campaigns.
+          </div>
+          <div class="cjm-stage-levers">
+            <span>Levers:</span> Broad awareness (SEO, events, PR, partner channels), accurate ICP, clean country/vertical lists.
+          </div>
+        </div>
+      </div>
+
+      <!-- STAGE 2 -->
+      <div class="cjm-stage">
+        <div class="cjm-stage-bar">
+          <div class="cjm-beam cjm-beam-60"></div>
+          <div class="cjm-stage-num" id="cjmStage2Num">0</div>
+        </div>
+        <div class="cjm-stage-body">
+          <div class="cjm-stage-title">Silent researchers in the dark funnel</div>
+          <div class="cjm-stage-drop">Drop-off: ~40% · No active intent yet</div>
+          <div class="cjm-stage-note">
+            Security / payments teams see us but keep research anonymous: peer chats, review sites, vendor shortlists. No forms, no demos.
+          </div>
+          <div class="cjm-stage-levers">
+            <span>Levers:</span> Thought leadership, PCI playbooks, localized case studies, retargeting, review platforms, social proof.
+          </div>
+        </div>
+      </div>
+
+      <!-- STAGE 3 -->
+     <div class="cjm-stage">
+  <div class="cjm-stage-bar">
+    <div class="cjm-beam cjm-beam-35"></div>
+    <div class="cjm-stage-num" id="cjmStage3Num">0</div>
+  </div>
+  <div class="cjm-stage-body">
+    <div class="cjm-stage-title">People who start interacting with us</div>
+    <div class="cjm-stage-drop">Drop-off: ~25% · We lose attention on the first contact</div>
+    <div class="cjm-stage-note">
+      From the entire reach, only a part makes an actual move: clicks, landing views, email opens.
+      The rest fall off because the message didn’t click with them, the page didn’t answer their first question,
+      or the next step wasn’t clear enough.
+    </div>
+    <div class="cjm-stage-levers">
+      <span>Levers:</span> clear headlines that say “who it’s for”, simple first screens, one main CTA,
+      short forms, human-sounding emails, and regular but non-pushy follow-ups.
+    </div>
+  </div>
+</div>
+
+      <!-- STAGE 4 -->
+      <div class="cjm-stage">
+  <div class="cjm-stage-bar">
+    <div class="cjm-beam cjm-beam-12"></div>
+    <div class="cjm-stage-num" id="cjmStage4Num">0</div>
+  </div>
+  <div class="cjm-stage-body">
+    <div class="cjm-stage-title">Teams who start seriously considering a change</div>
+    <div class="cjm-stage-drop">Drop-off: ~65% · Priorities shift, decisions stall</div>
+    <div class="cjm-stage-note">
+      At this point people read materials, save links, share things internally. But not all of them
+      move toward “let’s talk” or “let’s look at the numbers.” It’s not rejection — they simply get buried under
+      other tasks and we fall out of their field of view.
+    </div>
+    <div class="cjm-stage-levers">
+      <span>Levers:</span> helpful email series, short reminders with a summary, simple “before/after” comparisons,
+      small explainer videos that can be shared in chats, and soft asks for tiny steps
+      (a quick check-in, a short assessment, a 3-question survey).
+    </div>
+  </div>
+</div>
+
+      <!-- STAGE 5 -->
+      <div class="cjm-stage">
+  <div class="cjm-stage-bar">
+    <div class="cjm-beam cjm-beam-5"></div>
+    <div class="cjm-stage-num" id="cjmStage5Num">0</div>
+  </div>
+  <div class="cjm-stage-body">
+    <div class="cjm-stage-title">Requests that enter the real pipeline</div>
+    <div class="cjm-stage-drop">Drop-off: ~60% · Doubts and “let’s postpone”</div>
+    <div class="cjm-stage-note">
+      Here the interest is obvious: people submitted a form, asked for a call, or requested details.
+      But many still pause — not because of us, but because they fear disruptions or lean back toward familiar options.
+      If marketing doesn’t support sales here, a lot of momentum gets lost.
+    </div>
+    <div class="cjm-stage-levers">
+      <span>Levers:</span> simple answers to common concerns, short case snippets,
+      easy-to-forward materials for internal chats, supportive reminder emails,
+      and a clearly defined next step that requires minimal effort.
+    </div>
+  </div>
+</div>
+  </section>
+
+</section>
+
+  </main>
+
+
+  <!-- DATA INTELLIGENCE SECTION -->
+
+
+  <div class="methodology-container">
+
+
+<div class="meth-block">
+    <div class="meth-title">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:20px;height:20px;color:#a855f7;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+        1. Market Volume (Startups)
+    </div>
+    <div class="meth-text">
+        According to <strong>McKinsey's "Europe's Fintech Opportunity"</strong> and <strong>Statista Market Insights (2024)</strong>, the Core-5 EU region generates ~4,000 new Fintech/Payment entities annually requiring PCI compliance (from SAQ to Level 1).
+        <br><br>
+        The model assumes we address the "Startup/SMB" segment with a higher conversion rate (0.5% - 1.2%) due to acute need for speed, but at a lower ticket price (€12k avg).
+        <div class="source-tag">Source: McKinsey, Statista 2024</div>
+    </div>
+</div>
+
+<div class="meth-block">
+    <div class="meth-title">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:20px;height:20px;color:#a855f7;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+        2. The Enterprise Paradox
+    </div>
+    <div class="meth-text">
+        <strong>High Value vs. Low Visibility.</strong> A known conflict in B2B security sales: "The larger the deal, the lower the initial signal."
+        <br><br>
+        According to <strong>Gartner's B2B Buying Report</strong>, enterprise security decisions involve <strong>6-10 distinct stakeholders</strong> discussing purchases "offline" (The Dark Funnel) for 9-14 months.
+        <br><br>
+        <strong>Impact:</strong> We deliberately model Enterprise with a <strong>50% lower lead conversion rate</strong> to account for this lag and "Shadow Buying" dominance, despite higher Annual Contract Value (ACV).
+        <div class="source-tag">Source: Gartner, Forrester (Dark Funnel)</div>
+    </div>
+</div>
+
+<div class="meth-block">
+    <div class="meth-title">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:20px;height:20px;color:#a855f7;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        3. Cost Basis & Media
+    </div>
+    <div class="meth-text">
+        Cost assumptions derived from <strong>LinkedIn Ads Benchmark Report (Fintech/B2B Services)</strong> for Western Europe.
+        <br><br>
+        • Avg CPC: €12 - €18 (Core 5)<br>
+        • Nordics Premium: +30-40% CPM<br>
+        • Agency rates based on standard EU boutique pricing.
+        <div class="source-tag">Source: LinkedIn Insights, Agency Rates</div>
+    </div>
+</div>
+
+  </div>
+
+
+  <!-- GO OLDSCHOOL BUTTON -->
+
+
+  <div class="oldschool-container">
+      <div class="os-label">Need raw data?</div>
+      <div class="os-sublabel">Google Sheet Link for Budget</div>
+      <a href="https://docs.google.com/spreadsheets/d/1G-zrN4qYwi0z0x_7-Qb66ZlTWZmWeFZ1nnTD80j2l_E/edit?usp=sharing" target="_blank" class="btn-oldschool">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Go Oldschool
+      </a>
+  </div>
+
+
+  <footer>
+    <div class="disclaimer">
+        <strong>⚠️ Disclaimer:</strong> All figures presented are strategic projections based on industry benchmarks.
+        M1-M4 (Setup) yields zero leads. Performance ramps up post-launch (M5).
+        This tool simulates budget impact and does not constitute a financial guarantee.
+    </div>
+    <div class="version">November 28th - Pavel G.</div>
+  </footer>
+</div>
+
+
+<script>
+    /* LOGIC CORE */
+    const BASE_COSTS = {
+        branding: 10000, web: 22000, strategy: 5500, // CapEx
+        pr: 3000, smm: 2500, ads: 10000             // OpEx
+    };
+
+    const MARKETS = {
+        south:   { active: false, capex: 0.1, opex: 0.15, reach: 0.2 },
+        nordics: { active: false, capex: 0.2, opex: 0.35, reach: 0.3 }
+    };
+
+    const AUDIENCES = {
+        startups:   { active: true,  reachMod: 1.0, leadRate: 0.005,  deal: 12000, label: "Avg Deal €12k" },
+        enterprise: { active: false, reachMod: 2.5, leadRate: 0.0025, deal: 30000, label: "Avg Deal €30k" }
+    };
+
+    let curCoeff = 1.0;
+    let chartInstance = null;
+
+    const els = {
+        launch: document.getElementById('launchCost'),
+        burn: document.getElementById('monthlyBurn'),
+        cBrand: document.getElementById('capexBranding'),
+        cWeb: document.getElementById('capexWeb'),
+        cStrat: document.getElementById('capexStrategy'),
+        oPr: document.getElementById('opexPR'),
+        oSmm: document.getElementById('opexSMM'),
+        oAds: document.getElementById('opexAds'),
+        kpiAw: document.getElementById('valAwareness'),
+        kpiLd: document.getElementById('valLeads'),
+        kpiPipe: document.getElementById('valPipeline'),
+        dealMeta: document.getElementById('dealMeta'),
+        cjmHeadline: document.getElementById('cjmMetaHeadline'),
+        cjm1: document.getElementById('cjmStage1Num'),
+        cjm2: document.getElementById('cjmStage2Num'),
+        cjm3: document.getElementById('cjmStage3Num'),
+        cjm4: document.getElementById('cjmStage4Num'),
+        cjm5: document.getElementById('cjmStage5Num')
+    };
+
+    function update() {
+        // Multipliers
+        let mCapex = 0, mOpex = 0, mReach = 1;
+        if (MARKETS.south.active)   { mCapex += 0.1; mOpex += 0.15; mReach += 0.2; }
+        if (MARKETS.nordics.active) { mCapex += 0.2; mOpex += 0.35; mReach += 0.3; }
+
+        let audKey = AUDIENCES.enterprise.active ? 'enterprise' : 'startups';
+        let audData = AUDIENCES[audKey];
+
+        // Cost Calculation
+        const costs = {
+            brand: BASE_COSTS.branding * curCoeff,
+            web:   BASE_COSTS.web      * curCoeff * (1 + mCapex),
+            strat: BASE_COSTS.strategy * curCoeff,
+            pr:    BASE_COSTS.pr       * curCoeff * (1 + mOpex * 0.5),
+            smm:   BASE_COSTS.smm      * curCoeff,
+            ads:   BASE_COSTS.ads      * curCoeff * (1 + mOpex)
+        };
+
+        // Render Costs
+        const fmtCurrency = n => '€ ' + n.toLocaleString();
+        els.cBrand.textContent = fmtCurrency(costs.brand);
+        els.cWeb.textContent   = fmtCurrency(costs.web);
+        els.cStrat.textContent = fmtCurrency(costs.strat);
+        els.oPr.textContent    = fmtCurrency(costs.pr);
+        els.oSmm.textContent   = fmtCurrency(costs.smm);
+        els.oAds.textContent   = fmtCurrency(costs.ads);
+
+        animateNum(els.launch, costs.brand + costs.web + costs.strat, fmtCurrency);
+        animateNum(els.burn,   costs.pr   + costs.smm + costs.ads,   fmtCurrency);
+
+        // Funnel Simulation
+        const totalReachMult = curCoeff * mReach * audData.reachMod;
+        const baseReach = 15000;
+
+        let reachArr = [], leadsArr = [];
+        let sumReach = 0, sumLeads = 0;
+
+        for (let i = 0; i < 12; i++) {
+            if (i < 4) { // Dev Phase
+                reachArr.push(1000); leadsArr.push(0);
+                sumReach += 1000;
+            } else {     // Active
+                let monthIdx = i - 3;
+                let growth = monthIdx * (audKey === 'enterprise' ? 1.1 : 1.3);
+                let r = (baseReach * totalReachMult) * growth;
+                let l = r * audData.leadRate;
+                reachArr.push(r); leadsArr.push(l);
+                sumReach += r; sumLeads += l;
+            }
+        }
+
+        // Render KPIs
+        const fmtNumShort = n => n > 1000000
+            ? (n / 1000000).toFixed(1) + 'M'
+            : (n > 1000 ? (n / 1000).toFixed(0) + 'k' : n.toFixed(0));
+
+        animateNum(els.kpiAw,   sumReach,             fmtNumShort);
+        animateNum(els.kpiLd,   sumLeads,             n => Math.round(n));
+        animateNum(els.kpiPipe, sumLeads * audData.deal, fmtCurrency);
+        els.dealMeta.textContent = audData.label;
+
+        // CJM MAP NUMBERS (Potential beam vs. realistic pipeline)
+        if (els.cjm1) {
+            const potentialAccounts = sumLeads; // beam at the top (~3.5k in optimal scenario)
+
+            const stage1 = potentialAccounts;          // 100%
+            const stage2 = stage1 * 0.60;              // ~40% drop (no intent yet)
+            const stage3 = stage1 * 0.35;              // shortlist visibility
+            const stage4 = stage1 * 0.12;              // in-year, budgeted
+            const stage5 = stage1 * 0.05;              // real PCI opportunities
+
+            animateNum(els.cjm1, stage1, fmtNumShort);
+            animateNum(els.cjm2, stage2, fmtNumShort);
+            animateNum(els.cjm3, stage3, fmtNumShort);
+            animateNum(els.cjm4, stage4, fmtNumShort);
+            animateNum(els.cjm5, stage5, fmtNumShort);
+
+            if (els.cjmHeadline) {
+                els.cjmHeadline.textContent =
+                  'Beam starts at ≈ ' + fmtNumShort(stage1) +
+                  ' PCI-relevant accounts touched; only a single-digit % becomes in-year PCI opportunities.';
+            }
+        }
+
+        renderChart(reachArr, leadsArr);
+    }
+
+    function animateNum(el, final, fmt) {
+        el.textContent = fmt(final);
+        el.classList.remove('updated');
+        void el.offsetWidth;
+        el.classList.add('updated');
+    }
+
+    function renderChart(reach, leads) {
+        const ctx = document.getElementById('mainChart');
+        if (!ctx) return;
+        const labels = ['M1','M2','M3','M4','M5','M6','M7','M8','M9','M10','M11','M12'];
+
+        if (chartInstance) {
+            chartInstance.data.datasets[0].data = reach;
+            chartInstance.data.datasets[1].data = leads;
+            chartInstance.update();
+            return;
+        }
+
+        chartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                      type: 'bar',
+                      label: 'Reach',
+                      data: reach,
+                      backgroundColor: (c) => c.dataIndex < 4 ? 'rgba(148,163,184,0.1)' : 'rgba(52,211,153,0.5)',
+                      borderRadius: 4,
+                      barThickness: 16,
+                      order: 2,
+                      yAxisID: 'y'
+                    },
+                    {
+                      type: 'line',
+                      label: 'Leads',
+                      data: leads,
+                      borderColor: '#a855f7',
+                      borderWidth: 2,
+                      pointBackgroundColor: '#ffffff',
+                      pointRadius: 3,
+                      order: 1,
+                      yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 11 } } },
+                    y: { position: 'left', grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } },
+                    y1: { position: 'right', grid: { display: false }, ticks: { display: false } }
+                }
+            }
+        });
+    }
+
+    // Handlers
+    document.querySelectorAll('#strategyGroup .toggle-pill').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('#strategyGroup .toggle-pill').forEach(b => b.classList.remove('active'));
+            e.currentTarget.classList.add('active');
+            curCoeff = parseFloat(e.currentTarget.dataset.coeff);
+            update();
+        });
+    });
+
+    const bindToggle = (id, obj, key) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('click', function() {
+            this.classList.toggle('active');
+            obj[key].active = !obj[key].active;
+            this.querySelector('.fake-check').style.background = obj[key].active ? '#34d399' : '#475569';
+            update();
+        });
+    };
+    bindToggle('marketSouth', MARKETS, 'south');
+    bindToggle('marketNordics', MARKETS, 'nordics');
+
+    document.querySelectorAll('#audienceGroup .toggle-pill').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('#audienceGroup .toggle-pill').forEach(b => b.classList.remove('active'));
+            e.currentTarget.classList.add('active');
+            let key = e.currentTarget.dataset.key;
+            if (key === 'startups') {
+                AUDIENCES.startups.active = true;
+                AUDIENCES.enterprise.active = false;
+            } else {
+                AUDIENCES.startups.active = false;
+                AUDIENCES.enterprise.active = true;
+            }
+            update();
+        });
+    });
+
+    update();
+</script>
+
+
+</body>
+</html>
